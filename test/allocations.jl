@@ -112,4 +112,21 @@ let
     end
 end
 
+# VR_Direct rate summation must stay non-allocating for more than 32 jumps
+let
+    for n in (10, 40)
+        f!(du, u, p, t) = (du .= 0; nothing)
+        jumps = [VariableRateJump((u, p, t) -> p[1] * (1 + u[i]) * t,
+                     integ -> (integ.u[i] += 1; nothing)) for i in 1:n]
+        oprob = ODEProblem(f!, zeros(n), (0.0, 1.0), (0.5,))
+        jprob = JumpProblem(oprob, Direct(), jumps...; vr_aggregator = VR_Direct(),
+            rng = StableRNG(1))
+        cache = jprob.jump_callback.continuous_callbacks[1].condition
+        u, p, t = oprob.u0, oprob.p, 0.3
+        @test JumpProcesses.total_variable_rate(cache, u, p, t) ≈ n * 0.5 * 0.3
+        @test cache.cum_rate_sum ≈ (1:n) .* (0.5 * 0.3)
+        @test (@allocated JumpProcesses.total_variable_rate(cache, u, p, t)) == 0
+    end
+end
+
 nothing
