@@ -129,4 +129,21 @@ let
     end
 end
 
+# tuple-based constant rate aggregators must not allocate per step for more than 32 jumps
+let
+    n = 40
+    jumps = [ConstantRateJump((u, p, t) -> p[1], integ -> (integ.u[i] += 1; nothing))
+             for i in 1:n]
+    for agg in (Direct(), FRM())
+        nallocs = map((10.0, 100.0)) do T
+            dprob = DiscreteProblem(zeros(Int, n), (0.0, T), (0.5,))
+            jprob = JumpProblem(dprob, agg, jumps...; save_positions = (false, false),
+                rng = StableRNG(1))
+            solve(jprob, SSAStepper())
+            @allocations solve(jprob, SSAStepper())
+        end
+        @test nallocs[1] == nallocs[2]
+    end
+end
+
 nothing
