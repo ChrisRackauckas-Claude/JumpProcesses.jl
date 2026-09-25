@@ -70,7 +70,7 @@ const USE_RSSA_THRESHOLD = 100
 const USE_SORTINGDIRECT_THRESHOLD = 200
 
 include("jumps.jl")
-export ConstantRateJump, VariableRateJump, RegularJump, MassActionJump, JumpSet
+export ConstantRateJump, VariableRateJump, RegularJump, MassActionJump, JumpSet, RateBounds
 export massaction_rates!, massaction_stoichiometry_mul!, massaction_drift!
 
 include("massaction_rates.jl")
