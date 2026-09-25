@@ -113,6 +113,9 @@ let
 end
 
 # VR_Direct rate summation must stay non-allocating for more than 32 jumps
+# Measured through a function barrier: at non-function scope Julia 1.10's
+# `@allocated` counts the boxed Float64 return value (16 bytes).
+alloc_total_rate(cache, u, p, t) = @allocated JumpProcesses.total_variable_rate(cache, u, p, t)
 let
     for n in (10, 40)
         f!(du, u, p, t) = (du .= 0; nothing)
@@ -125,7 +128,8 @@ let
         u, p, t = oprob.u0, oprob.p, 0.3
         @test JumpProcesses.total_variable_rate(cache, u, p, t) ≈ n * 0.5 * 0.3
         @test cache.cum_rate_sum ≈ (1:n) .* (0.5 * 0.3)
-        @test (@allocated JumpProcesses.total_variable_rate(cache, u, p, t)) == 0
+        alloc_total_rate(cache, u, p, t)
+        @test alloc_total_rate(cache, u, p, t) == 0
     end
 end
 
