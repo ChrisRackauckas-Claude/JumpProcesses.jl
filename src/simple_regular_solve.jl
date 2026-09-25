@@ -213,7 +213,7 @@ sol = solve(jprob, SimpleAdaptiveTauLeaping(implicit_alg = SimpleTrapezoidalLeap
 ```
 """
 struct SimpleAdaptiveTauLeaping{T <: AbstractFloat, A <: SciMLBase.AbstractDEAlgorithm} <:
-       SciMLBase.AbstractDEAlgorithm
+    SciMLBase.AbstractDEAlgorithm
     """Error control parameter used when selecting `tau`."""
     epsilon::T
     """The algorithm used for steps that are taken implicitly."""
@@ -229,9 +229,12 @@ end
 function SimpleAdaptiveTauLeaping(;
         epsilon = 0.05, implicit_alg = SimpleImplicitTauLeaping(),
         eigenvalue_check = false, stiffness_ratio_threshold = 1.0e4,
-        implicit_epsilon_factor = 10.0)
-    SimpleAdaptiveTauLeaping(epsilon, implicit_alg, eigenvalue_check,
-        stiffness_ratio_threshold, implicit_epsilon_factor)
+        implicit_epsilon_factor = 10.0
+    )
+    return SimpleAdaptiveTauLeaping(
+        epsilon, implicit_alg, eigenvalue_check,
+        stiffness_ratio_threshold, implicit_epsilon_factor
+    )
 end
 
 function validate_pure_leaping_inputs(jump_prob::JumpProblem, alg)
@@ -263,7 +266,7 @@ function validate_pure_leaping_inputs(
         JumpProblem, i.e. call JumpProblem(::DiscreteProblem, PureLeaping(),...). \
         Passing $(jump_prob.aggregator) is deprecated and will be removed in the next breaking release."
     end
-    isempty(jump_prob.jump_callback.continuous_callbacks) &&
+    return isempty(jump_prob.jump_callback.continuous_callbacks) &&
         isempty(jump_prob.jump_callback.discrete_callbacks) &&
         isempty(jump_prob.constant_jumps) &&
         isempty(jump_prob.variable_jumps) &&
@@ -289,7 +292,7 @@ function _process_saveat(saveat, tspan, save_start, save_end)
         _save_start = something(save_start, true)
         _save_end = something(save_end, true)
     elseif saveat isa Number
-        saveat_vec = collect(t0 + saveat:saveat:tf)
+        saveat_vec = collect((t0 + saveat):saveat:tf)
         if !isempty(saveat_vec) && last(saveat_vec) == tf
             pop!(saveat_vec)
         end
@@ -306,9 +309,11 @@ function _process_saveat(saveat, tspan, save_start, save_end)
     return saveat_vec, _save_start, _save_end
 end
 
-function DiffEqBase.solve(jump_prob::JumpProblem, alg::SimpleTauLeaping;
+function DiffEqBase.solve(
+        jump_prob::JumpProblem, alg::SimpleTauLeaping;
         seed = nothing, dt = error("dt is required for SimpleTauLeaping."),
-        saveat = nothing, save_start = nothing, save_end = nothing)
+        saveat = nothing, save_start = nothing, save_end = nothing
+    )
     validate_pure_leaping_inputs(jump_prob, alg) ||
         error("SimpleTauLeaping requires a PureLeaping JumpProblem with a MassActionJump or a RegularJump.")
 
@@ -378,9 +383,11 @@ function DiffEqBase.solve(jump_prob::JumpProblem, alg::SimpleTauLeaping;
         push!(tsave, tspan[2])
     end
 
-    sol = SciMLBase.build_solution(prob, alg, tsave, usave,
+    return sol = SciMLBase.build_solution(
+        prob, alg, tsave, usave,
         calculate_error = false, retcode = ReturnCode.Success,
-        interp = SciMLBase.ConstantInterpolation(tsave, usave))
+        interp = SciMLBase.ConstantInterpolation(tsave, usave)
+    )
 end
 
 # Compute the highest order of reaction (HOR) for each reaction j, as per Cao et al. (2006), Section IV.
@@ -393,7 +400,8 @@ function compute_hor(reactant_stoch, numjumps)
     hor = zeros(stoch_type, numjumps)
     for j in 1:numjumps
         order = sum(
-            stoch for (spec_idx, stoch) in reactant_stoch[j]; init = zero(stoch_type))
+            stoch for (spec_idx, stoch) in reactant_stoch[j]; init = zero(stoch_type)
+        )
         if order > 3
             error("Reaction $j has order $order, which is not supported (maximum order is 3).")
         end
@@ -449,19 +457,19 @@ function compute_gi(u, max_hor, max_stoich, i, t)
             return 2 * one_max_hor
         else # if max_stoich[i] == 2
             return u[i] > one_max_hor ?
-                   2 * one_max_hor + one_max_hor / (u[i] - one_max_hor) : 2 * one_max_hor  # Fallback to 2 if x_i <= 1
+                2 * one_max_hor + one_max_hor / (u[i] - one_max_hor) : 2 * one_max_hor  # Fallback to 2 if x_i <= 1
         end
     elseif max_hor[i] == 3
         if max_stoich[i] == 1
             return 3 * one_max_hor
         elseif max_stoich[i] == 2
             return u[i] > one_max_hor ?
-                   (3 * one_max_hor / 2) *
-                   (2 * one_max_hor + one_max_hor / (u[i] - one_max_hor)) : 3 * one_max_hor  # Fallback to 3 if x_i <= 1
+                (3 * one_max_hor / 2) *
+                (2 * one_max_hor + one_max_hor / (u[i] - one_max_hor)) : 3 * one_max_hor  # Fallback to 3 if x_i <= 1
         else # if max_stoich[i] == 3
             return u[i] > 2 * one_max_hor ?
-                   3 * one_max_hor + one_max_hor / (u[i] - one_max_hor) +
-                   2 * one_max_hor / (u[i] - 2 * one_max_hor) : 3 * one_max_hor  # Fallback to 3 if x_i <= 2
+                3 * one_max_hor + one_max_hor / (u[i] - one_max_hor) +
+                2 * one_max_hor / (u[i] - 2 * one_max_hor) : 3 * one_max_hor  # Fallback to 3 if x_i <= 2
         end
     end
     return one_max_hor  # Default case
@@ -473,7 +481,8 @@ end
 # mu_i(x) = sum_j nu_ij * a_j(x), sigma_i^2(x) = sum_j nu_ij^2 * a_j(x)
 # I_rs is the set of reactant species (assumed to be all species here, as critical reactions are not specified).
 function compute_tau(
-        u, rate_cache, nu, hor, p, t, epsilon, rate, dtmin, max_hor, max_stoich, numjumps)
+        u, rate_cache, nu, hor, p, t, epsilon, rate, dtmin, max_hor, max_stoich, numjumps
+    )
     rate(rate_cache, u, p, t)
     if all(<=(0), rate_cache)  # Handle case where all rates are zero or negative
         return dtmin
@@ -508,7 +517,8 @@ function simple_explicit_tau_leaping_loop!(
         prob, alg, u_current, u_new, t_current, t_end, p, rng,
         rate, c, nu, hor, max_hor, max_stoich, numjumps, epsilon,
         dtmin, saveat_times, usave, tsave, du, counts, rate_cache, rate_effective, maj,
-        save_end)
+        save_end
+    )
     save_idx = 1
 
     while t_current < t_end
@@ -517,11 +527,13 @@ function simple_explicit_tau_leaping_loop!(
             t_current = t_end
             break
         end
-        tau = compute_tau(u_current, rate_cache, nu, hor, p, t_current,
-            epsilon, rate, dtmin, max_hor, max_stoich, numjumps)
+        tau = compute_tau(
+            u_current, rate_cache, nu, hor, p, t_current,
+            epsilon, rate, dtmin, max_hor, max_stoich, numjumps
+        )
         tau = min(tau, t_end - t_current)
         if !isempty(saveat_times) && save_idx <= length(saveat_times) &&
-           t_current + tau > saveat_times[save_idx]
+                t_current + tau > saveat_times[save_idx]
             tau = saveat_times[save_idx] - t_current
         end
         # Calculate Poisson random numbers only for positive rates
@@ -553,7 +565,7 @@ function simple_explicit_tau_leaping_loop!(
 
         # Save state if at a saveat time or if saveat is empty
         if isempty(saveat_times) ||
-           (save_idx <= length(saveat_times) && t_new >= saveat_times[save_idx])
+                (save_idx <= length(saveat_times) && t_new >= saveat_times[save_idx])
             push!(usave, copy(u_new))
             push!(tsave, t_new)
             if !isempty(saveat_times) && t_new >= saveat_times[save_idx]
@@ -566,16 +578,18 @@ function simple_explicit_tau_leaping_loop!(
     end
 
     # Save endpoint if requested and not already saved
-    if save_end && (isempty(tsave) || tsave[end] != t_end)
+    return if save_end && (isempty(tsave) || tsave[end] != t_end)
         push!(usave, copy(u_current))
         push!(tsave, t_end)
     end
 end
 
-function DiffEqBase.solve(jump_prob::JumpProblem, alg::SimpleExplicitTauLeaping;
+function DiffEqBase.solve(
+        jump_prob::JumpProblem, alg::SimpleExplicitTauLeaping;
         seed = nothing,
         dtmin = nothing,
-        saveat = nothing, save_start = nothing, save_end = nothing)
+        saveat = nothing, save_start = nothing, save_end = nothing
+    )
     validate_pure_leaping_inputs(jump_prob, alg) ||
         error("SimpleExplicitTauLeaping can only be used with PureLeaping JumpProblem with a MassActionJump.")
 
@@ -584,7 +598,7 @@ function DiffEqBase.solve(jump_prob::JumpProblem, alg::SimpleExplicitTauLeaping;
     tspan = prob.tspan
 
     if dtmin === nothing
-        dtmin = 1e-10 * one(typeof(tspan[2]))
+        dtmin = 1.0e-10 * one(typeof(tspan[2]))
     end
 
     (seed !== nothing) && seed!(rng, seed)
@@ -629,17 +643,21 @@ function DiffEqBase.solve(jump_prob::JumpProblem, alg::SimpleExplicitTauLeaping;
     reactant_stoch = maj.reactant_stoch
     hor = compute_hor(reactant_stoch, numjumps)
     max_hor, max_stoich = precompute_reaction_conditions(
-        reactant_stoch, hor, length(u0), numjumps)
+        reactant_stoch, hor, length(u0), numjumps
+    )
 
     simple_explicit_tau_leaping_loop!(
         prob, alg, u_current, u_new, t_current, t_end, p, rng,
         rate, c, nu, hor, max_hor, max_stoich, numjumps, epsilon,
         dtmin, saveat_times, usave, tsave, du, counts, rate_cache, rate_effective, maj,
-        save_end)
+        save_end
+    )
 
-    sol = SciMLBase.build_solution(prob, alg, tsave, usave,
+    sol = SciMLBase.build_solution(
+        prob, alg, tsave, usave,
         calculate_error = false, retcode = ReturnCode.Success,
-        interp = SciMLBase.ConstantInterpolation(tsave, usave))
+        interp = SciMLBase.ConstantInterpolation(tsave, usave)
+    )
     return sol
 end
 
@@ -847,10 +865,13 @@ end
 # fast timescale it damps, so the tolerance is relaxed by
 # `implicit_epsilon_factor` and applied at the state the explicit step would
 # have reached, per Cao et al. (2007), Section III.A.
-function compute_tau_implicit(u, rate_cache, nu, hor, p, t, epsilon, rate, dtmin,
-        max_hor, max_stoich, numjumps, implicit_epsilon_factor)
+function compute_tau_implicit(
+        u, rate_cache, nu, hor, p, t, epsilon, rate, dtmin,
+        max_hor, max_stoich, numjumps, implicit_epsilon_factor
+    )
     tau_explicit = compute_tau(
-        u, rate_cache, nu, hor, p, t, epsilon, rate, dtmin, max_hor, max_stoich, numjumps)
+        u, rate_cache, nu, hor, p, t, epsilon, rate, dtmin, max_hor, max_stoich, numjumps
+    )
 
     u_predict = float.(u)
     rate(rate_cache, u, p, t)
@@ -862,8 +883,10 @@ function compute_tau_implicit(u, rate_cache, nu, hor, p, t, epsilon, rate, dtmin
     u_predict .= max.(u_predict, zero(eltype(u_predict)))
 
     relaxed_epsilon = epsilon * implicit_epsilon_factor
-    tau = compute_tau(u_predict, rate_cache, nu, hor, p, t + tau_explicit,
-        relaxed_epsilon, rate, dtmin, max_hor, max_stoich, numjumps)
+    tau = compute_tau(
+        u_predict, rate_cache, nu, hor, p, t + tau_explicit,
+        relaxed_epsilon, rate, dtmin, max_hor, max_stoich, numjumps
+    )
     return max(tau, dtmin)
 end
 
@@ -895,14 +918,16 @@ end
 # Decide whether the system currently looks stiff, either from the spread of the
 # propensities or from the eigenvalue ratio of the drift Jacobian.
 # Reference: Cao et al. (2007), Section III.B
-function is_stiff(rate_cache, u, epsilon, eigenvalue_check, stiffness_ratio_threshold,
-        p, t, rate, nu, numjumps, numspecies)
+function is_stiff(
+        rate_cache, u, epsilon, eigenvalue_check, stiffness_ratio_threshold,
+        p, t, rate, nu, numjumps, numspecies
+    )
     positive_rates = Iterators.filter(>(zero(eltype(rate_cache))), rate_cache)
     count(_ -> true, positive_rates) <= 1 && return false
 
     if eigenvalue_check
         J = compute_drift_jacobian(u, rate, nu, numjumps, numspecies, p, t)
-        magnitudes = Iterators.filter(>(1e-10), abs.(real.(LinearAlgebra.eigvals(J))))
+        magnitudes = Iterators.filter(>(1.0e-10), abs.(real.(LinearAlgebra.eigvals(J))))
         count(_ -> true, magnitudes) <= 1 && return false
         # Stiffness ratio threshold, Petzold (1983), SIAM J. Sci. Stat. Comput. 4(1), 136-148
         return maximum(magnitudes) / minimum(magnitudes) > stiffness_ratio_threshold
@@ -967,8 +992,10 @@ function simple_adaptive_tau_leaping_loop!(
             )
             if !converged
                 tau <= dtmin &&
-                    error("SimpleAdaptiveTauLeaping failed to converge at t = $t_current " *
-                    "with the smallest permitted step dtmin = $dtmin.")
+                    error(
+                    "SimpleAdaptiveTauLeaping failed to converge at t = $t_current " *
+                        "with the smallest permitted step dtmin = $dtmin."
+                )
                 tau_cap = tau / 2
                 continue
             end
@@ -1134,9 +1161,9 @@ struct EnsembleGPUKernel{Backend} <: SciMLBase.EnsembleAlgorithm
 end
 
 function EnsembleGPUKernel(backend)
-    EnsembleGPUKernel(backend, 0.0)
+    return EnsembleGPUKernel(backend, 0.0)
 end
 
 function EnsembleGPUKernel()
-    EnsembleGPUKernel(nothing, 0.0)
+    return EnsembleGPUKernel(nothing, 0.0)
 end

@@ -46,20 +46,20 @@ using SciMLBase: SciMLBase, DEIntegrator, NonlinearProblem
 # `affect!`, run ensembles, and inspect the result. Everything here stays owned and
 # documented upstream in SciMLBase.
 using SciMLBase: CallbackSet, ContinuousCallback, DiscreteFunction, DiscreteProblem,
-                 EnsembleAnalysis, EnsembleDistributed, EnsembleProblem, EnsembleSerial,
-                 EnsembleSolution, EnsembleSplitThreads, EnsembleSummary,
-                 EnsembleThreads, NullParameters, ODEFunction, ODEProblem, ODESolution,
-                 ReturnCode, SDEFunction, SDEProblem, VectorContinuousCallback,
-                 add_saveat!, add_tstop!, derivative_discontinuity!, reinit!, remake,
-                 savevalues!, set_proposed_dt!, set_t!, set_u!, step!,
-                 successful_retcode, terminate!, u_modified!
+    EnsembleAnalysis, EnsembleDistributed, EnsembleProblem, EnsembleSerial,
+    EnsembleSolution, EnsembleSplitThreads, EnsembleSummary,
+    EnsembleThreads, NullParameters, ODEFunction, ODEProblem, ODESolution,
+    ReturnCode, SDEFunction, SDEProblem, VectorContinuousCallback,
+    add_saveat!, add_tstop!, derivative_discontinuity!, reinit!, remake,
+    savevalues!, set_proposed_dt!, set_t!, set_u!, step!,
+    successful_retcode, terminate!, u_modified!
 
 abstract type AbstractJump end
 abstract type AbstractMassActionJump <: AbstractJump end
 abstract type AbstractAggregatorAlgorithm end
 abstract type AbstractJumpAggregator end
 abstract type AbstractSSAIntegrator{Alg, IIP, U, T} <:
-              DEIntegrator{Alg, IIP, U, T} end
+DEIntegrator{Alg, IIP, U, T} end
 
 const DEFAULT_RNG = Random.default_rng()
 
@@ -173,18 +173,18 @@ export init, solve, solve!
 
 # Reexported SciML common interface; approved via `reexports_allow` in test/qa.jl.
 export CallbackSet, ContinuousCallback, DiscreteCallback, DiscreteFunction,
-       DiscreteProblem, EnsembleAnalysis, EnsembleDistributed, EnsembleProblem,
-       EnsembleSerial, EnsembleSolution, EnsembleSplitThreads, EnsembleSummary,
-       EnsembleThreads, NullParameters, ODEFunction, ODEProblem, ODESolution,
-       ReturnCode, SDEFunction, SDEProblem, VectorContinuousCallback, add_saveat!,
-       add_tstop!, derivative_discontinuity!, reinit!, remake, savevalues!,
-       set_proposed_dt!, set_t!, set_u!, step!, successful_retcode, terminate!,
-       u_modified!
+    DiscreteProblem, EnsembleAnalysis, EnsembleDistributed, EnsembleProblem,
+    EnsembleSerial, EnsembleSolution, EnsembleSplitThreads, EnsembleSummary,
+    EnsembleThreads, NullParameters, ODEFunction, ODEProblem, ODESolution,
+    ReturnCode, SDEFunction, SDEProblem, VectorContinuousCallback, add_saveat!,
+    add_tstop!, derivative_discontinuity!, reinit!, remake, savevalues!,
+    set_proposed_dt!, set_t!, set_u!, step!, successful_retcode, terminate!,
+    u_modified!
 
 include("SSA_stepper.jl")
 export SSAStepper
 
-# leaping: 
+# leaping:
 include("simple_regular_solve.jl")
 export SimpleTauLeaping, SimpleExplicitTauLeaping, SimpleImplicitTauLeaping,
     SimpleTrapezoidalLeaping, SimpleAdaptiveTauLeaping, EnsembleGPUKernel
@@ -216,8 +216,10 @@ include("coupling.jl")
     affect! = integrator -> (integrator.u[1] += 1)
     jump = ConstantRateJump(rate, affect!)
     prob = DiscreteProblem([10.0], (0.0, 1.0))
-    jump_prob = JumpProblem(prob, Direct(), jump;
-        rng = Random.MersenneTwister(12345), save_positions = (false, false))
+    jump_prob = JumpProblem(
+        prob, Direct(), jump;
+        rng = Random.MersenneTwister(12345), save_positions = (false, false)
+    )
 
     @compile_workload begin
         integrator = init(jump_prob, SSAStepper())
