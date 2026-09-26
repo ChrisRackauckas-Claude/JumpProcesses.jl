@@ -1,6 +1,7 @@
 using Test, JumpProcesses, DiffEqBase, OrdinaryDiffEq, SciMLBase, LinearAlgebra, LinearSolve
 using FastBroadcast
 using ForwardDiff
+using RecursiveArrayTools
 using StableRNGs
 
 rng = StableRNG(123)
@@ -227,4 +228,33 @@ let
     @test Vector(u[:]) == [1.0, 2.0, 3.0, 4.0]
     @test similar(u) isa ExtendedJumpArray
     @test copy(u) isa ExtendedJumpArray
+end
+
+# Regression for https://github.com/SciML/JumpProcesses.jl/issues/57:
+# ExtendedJumpArray should forward unknown properties (e.g. `.x`) to the wrapped
+# state so ArrayPartition VariableRateJump affect! can use `integrator.u.x`.
+let
+    eja = ExtendedJumpArray(ArrayPartition([1.0], [2.0]), [0.0])
+    @test eja.u isa ArrayPartition
+    @test eja.jump_u == [0.0]
+    @test eja.x === eja.u.x
+    @test :x in propertynames(eja)
+    @test :u in propertynames(eja)
+    @test :jump_u in propertynames(eja)
+
+    function f!(du, u, p, t)
+        du.x[1][1] = -u.x[1][1]
+        nothing
+    end
+    u0 = ArrayPartition([1.0], [1.0])
+    ode = ODEProblem(f!, u0, (0.0, 1.0))
+    rate(u, p, t) = 10 * u[1]
+    function affect!(integrator)
+        integrator.u.x[2] .+= randn()
+        nothing
+    end
+    jump = VariableRateJump(rate, affect!)
+    jump_prob = JumpProblem(ode, Direct(), jump; rng = StableRNG(57))
+    sol = solve(jump_prob, Tsit5())
+    @test sol.retcode == ReturnCode.Success
 end

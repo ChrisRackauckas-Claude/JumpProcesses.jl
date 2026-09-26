@@ -65,6 +65,18 @@ struct ExtendedJumpArray{T3 <: Number, T1, T <: AbstractArray{T3, T1}, T2} <:
     jump_u::T2
 end
 
+# Forward properties that are not fields to the wrapped state, so e.g.
+# `eja.x` works when `eja.u` is an `ArrayPartition`.
+@inline function Base.getproperty(A::ExtendedJumpArray, s::Symbol)
+    s === :u && return getfield(A, :u)
+    s === :jump_u && return getfield(A, :jump_u)
+    return getproperty(getfield(A, :u), s)
+end
+
+function Base.propertynames(A::ExtendedJumpArray, private::Bool = false)
+    return (fieldnames(typeof(A))..., propertynames(getfield(A, :u), private)...)
+end
+
 Base.length(A::ExtendedJumpArray) = length(A.u) + length(A.jump_u)
 Base.size(A::ExtendedJumpArray) = (length(A),)
 @inline function Base.getindex(A::ExtendedJumpArray, i::Int)
